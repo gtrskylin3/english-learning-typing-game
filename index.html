@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnglishType</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #1a1a1a;
+            color: #e2e2e2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .game-container {
+            text-align: center;
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 1400px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+
+        a {
+            color: #ffffff !important;
+            text-decoration: none
+        }
+        p {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            margin-bottom: 1.5rem;
+        }
+
+        select,
+        button {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #3a3a3a;
+            color: #e2e2e2;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        select:hover,
+        button:hover {
+            background: #4a4a4a;
+        }
+
+        #toggle-tts-btn {
+            background: #10b981;
+        }
+
+        #toggle-tts-btn:hover {
+            background: #059669;
+        }
+
+        #game {
+            margin-top: 20px;
+        }
+
+        #word {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+            opacity: 0;
+            animation: fadeIn 0.3s ease-in forwards;
+            white-space: pre-wrap;
+        }
+
+        #translation {
+            font-size: 1.2rem;
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        #author {
+            font-size: 1rem;
+            color: #a0a0a0;
+            font-style: italic;
+            margin-bottom: 1.5rem;
+            display: none; /* ← Показывать только для цитат */
+        }
+
+        #input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            padding: 10px;
+            width: 80%;
+            max-width: 500px;
+            background: #3a3a3a;
+            color: #ffffff;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s, transform 0.2s;
+        }
+
+        #input:focus {
+            border-color: #10b981;
+            transform: scale(1.02);
+        }
+
+        #input.correct {
+            border-color: #10b981;
+            background: #2f4f4f;
+        }
+
+        #input.incorrect {
+            border-color: #ef4444;
+            background: #4b2e2e;
+        }
+
+        #stats {
+            margin-top: 2rem;
+            font-size: 1.2rem;
+            color: #a0a0a0;
+        }
+
+        #stats span {
+            color: #10b981;
+            font-weight: 700;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            #word {
+                font-size: 1.8rem;
+            }
+
+            #input {
+                font-size: 1.2rem;
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-container">
+        <h1><a href="/">EnglishType</a></h1>
+        <p>Изучай английский и тренируй скорость печати!</p>
+        <select id="category">
+            <option value="short">Короткие слова</option>
+            <option value="medium">Средние слова</option>
+            <option value="long">Длинные слова</option>
+            <option value="quotes">Цитаты</option>
+        </select>
+        <button id="start-btn">Начать</button>
+        <button id="toggle-tts-btn">Озвучка (On)</button>
+
+        <div id="game" class="hidden">
+            <div id="word"></div>
+            <div id="translation"></div>
+            <div id="author"></div>
+            <input type="text" id="input" autofocus aria-label="Type the displayed word">
+            <div id="stats">
+                Words Typed: <span id="word-count">0</span><br>
+                WPM: <span id="wpm">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+        let currentWord = '';
+        let startTime = null;
+        let wordCount = 0;
+        let totalChars = 0;
+        let timerInterval = null;
+        let ttsEnabled = true;
+        let isProcessing = false;
+
+        const startBtn = document.getElementById("start-btn");
+        const categorySelect = document.getElementById("category");
+        const toggleTtsBtn = document.getElementById("toggle-tts-btn");
+        const gameDiv = document.getElementById("game");
+        const wordEl = document.getElementById("word");
+        const translationEl = document.getElementById("translation");
+        const authorEl = document.getElementById("author");
+        const inputEl = document.getElementById("input");
+        const wordCountEl = document.getElementById("word-count");
+        const wpmEl = document.getElementById("wpm");
+
+
+        startBtn.addEventListener('click', startGame);
+        toggleTtsBtn.addEventListener('click', toggleTts);
+
+        function toggleTts() {
+            ttsEnabled = !ttsEnabled;
+            toggleTtsBtn.textContent = `Озвучка (${ttsEnabled ? 'On': 'Off'})`;
+        }
+
+        async function startGame() {
+            startBtn.classList.add('hidden');
+            categorySelect.classList.add('hidden')
+            toggleTtsBtn.classList.add('hidden')
+            gameDiv.classList.remove('hidden')
+            wordCount = 0;
+            totalChars = 0;  // ← НОВОЕ: Сброс символов
+            isProcessing = false;
+            updateStats();
+            await loadNextWord();
+            inputEl.focus();
+            startTime = new Date();
+            timerInterval = setInterval(calculateWPM, 1000);
+        }
+
+        async function loadNextWord() {
+            isProcessing = false;
+            const category = categorySelect.value;
+            try {
+                const response = await fetch(`${API_BASE}/get_${category}`);
+                const data = await response.json();
+                currentWord = category === 'quotes' ? data.quote : data.word;
+                wordEl.textContent = currentWord;
+                translationEl.textContent = category === 'quotes' ? data.translated_quote: data.translated_word;
+                authorEl.textContent = data.author ? `— ${data.author}` : '';
+                authorEl.style.display = category === 'quotes' ? 'block': 'none';
+                inputEl.value = '';
+                inputEl.classList.remove('correct', 'incorrect');
+                if (ttsEnabled) {
+                    speakTranslation(translationEl.textContent);
+                }
+            } catch (error) {
+                console.error('Error fetching word:', error);
+                translationEl.textContent = 'Error loading word. Try again.';
+            }
+        }
+        
+        function speakTranslation(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            const voices = speechSynthesis.getVoices();
+            const russianVoice = voices.find(voice => voice.lang === 'ru-RU'); 
+            if (russianVoice){
+                utterance.voice = russianVoice;
+            } else {
+                console.warn('Russian voice not found, using default.');
+            }
+            utterance.rate = 1.0;
+            utterance.pitch = 0.8;
+            speechSynthesis.speak(utterance);
+        }
+        
+        window.speechSynthesis.onvoiceschanged = () => {
+
+        };
+
+        inputEl.addEventListener('input', () => {
+            if (isProcessing) return; 
+            const typed = inputEl.value.trim();
+            if (typed === currentWord) {
+                inputEl.classList.add('correct');
+                inputEl.classList.remove('incorrect');
+                wordCount++;
+                totalChars += currentWord.length;  // ← НОВОЕ: Добавляем длину слова в символы
+                updateStats();
+                isProcessing = true; // ← НОВОЕ: Блокируем множественные срабатывания
+            
+                setTimeout(async () => {
+                    await loadNextWord();
+                }, 500);
+            } else if (currentWord.startsWith(typed)) {
+                inputEl.classList.remove('correct', 'incorrect');
+            } else {
+                inputEl.classList.add('incorrect');
+                inputEl.classList.remove('correct');
+            }
+        });
+
+        function updateStats() {
+            wordCountEl.textContent = wordCount;
+            calculateWPM();  // ← НОВОЕ: Пересчитываем WPM при каждом обновлении
+        }
+
+        function calculateWPM() {
+            if (startTime) {
+                const now = new Date();
+                const minutes = (now - startTime) / 1000 / 60;
+                const wpm = Math.trunc((totalChars / 5) / minutes ) || 0;
+                wpmEl.textContent = wpm;
+            }
+        }
+
+    </script>
+</body>
+
+</html>
