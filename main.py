@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.responses import FileResponse
 import uvicorn
 from aiohttp import ClientSession
 import random
@@ -43,6 +44,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+async def serve_index():
+    return FileResponse("index.html")
 
 @app.get('/get_quotes')
 async def get_quotes():
