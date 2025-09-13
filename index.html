@@ -202,7 +202,8 @@
             <input type="text" id="input" autofocus aria-label="Type the displayed word">
             <div id="stats">
                 Words Typed: <span id="word-count">0</span><br>
-                WPM: <span id="wpm">0</span>
+                WPM: <span id="wpm">0</span><br>
+                Accuracy: <span id="accuracy">0.00</span>%
             </div>
         </div>
     </div>
@@ -212,7 +213,9 @@
         let currentWord = '';
         let startTime = null;
         let wordCount = 0;
-        let totalChars = 0;
+        let totalCorrect = 0;
+        let totalIncorrect = 0;
+        let lastTyped = '';
         let timerInterval = null;
         let ttsEnabled = true;
         let isProcessing = false;
@@ -227,7 +230,7 @@
         const inputEl = document.getElementById("input");
         const wordCountEl = document.getElementById("word-count");
         const wpmEl = document.getElementById("wpm");
-
+        const accuracyEl = document.getElementById("accuracy");
 
         startBtn.addEventListener('click', startGame);
         toggleTtsBtn.addEventListener('click', toggleTts);
@@ -243,7 +246,8 @@
             toggleTtsBtn.classList.add('hidden')
             gameDiv.classList.remove('hidden')
             wordCount = 0;
-            totalChars = 0;  // ← НОВОЕ: Сброс символов
+            totalCorrect = 0;
+            totalIncorrect = 0;
             isProcessing = false;
             updateStats();
             await loadNextWord();
@@ -254,6 +258,7 @@
 
         async function loadNextWord() {
             isProcessing = false;
+            lastTyped = '';
             const category = categorySelect.value;
             try {
                 const response = await fetch(`${API_BASE}/get_${category}`);
@@ -295,14 +300,30 @@
 
         inputEl.addEventListener('input', () => {
             if (isProcessing) return; 
-            const typed = inputEl.value.trim();
+            const typed = inputEl.value; // Убрали trim(), чтобы учитывать пробелы в цитатах
+            const delta = typed.length - lastTyped.length;
+
+            if (delta > 0) {
+                for (let i = 0; i < delta; i++) {
+                    const pos = lastTyped.length + i;
+                    const char = typed[pos];
+                    if (pos < currentWord.length && char === currentWord[pos]) {
+                        totalCorrect++;
+                    } else {
+                        totalIncorrect++;
+                    }
+                }
+            }
+            // Для delta < 0 (backspace) ничего не добавляем, но ошибки уже учтены
+
+            lastTyped = typed;
+
             if (typed === currentWord) {
                 inputEl.classList.add('correct');
                 inputEl.classList.remove('incorrect');
                 wordCount++;
-                totalChars += currentWord.length;  // ← НОВОЕ: Добавляем длину слова в символы
                 updateStats();
-                isProcessing = true; // ← НОВОЕ: Блокируем множественные срабатывания
+                isProcessing = true;
             
                 setTimeout(async () => {
                     await loadNextWord();
@@ -313,20 +334,28 @@
                 inputEl.classList.add('incorrect');
                 inputEl.classList.remove('correct');
             }
+
+            updateAccuracy(); // Обновляем accuracy после каждого ввода для живого отображения
         });
 
         function updateStats() {
             wordCountEl.textContent = wordCount;
-            calculateWPM();  // ← НОВОЕ: Пересчитываем WPM при каждом обновлении
+            calculateWPM();
         }
 
         function calculateWPM() {
             if (startTime) {
                 const now = new Date();
                 const minutes = (now - startTime) / 1000 / 60;
-                const wpm = Math.trunc((totalChars / 5) / minutes ) || 0;
+                const wpm = Math.trunc((totalCorrect / 5) / minutes ) || 0;
                 wpmEl.textContent = wpm;
             }
+        }
+
+        function updateAccuracy() {
+            const totalTyped = totalCorrect + totalIncorrect;
+            const accuracy = totalTyped > 0 ? (totalCorrect / totalTyped * 100).toFixed(2) : 0.00;
+            accuracyEl.textContent = accuracy;
         }
 
     </script>
