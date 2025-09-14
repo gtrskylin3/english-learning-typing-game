@@ -89,7 +89,8 @@
             color: #ffffff;
             margin-bottom: 0.5rem;
             white-space: pre-wrap;
-            user-select: none; /* prevent selection */
+            user-select: none;
+            /* prevent selection */
         }
 
         #translation {
@@ -116,6 +117,13 @@
             color: #10b981;
             font-weight: 700;
         }
+        #caps-warning {
+            font-size: 1.1rem;
+            color: #ef4444;
+            margin-bottom: 1rem;
+            display: none;
+            font-weight: 700;
+        }
 
         .hidden {
             display: none;
@@ -139,7 +147,7 @@
 
 <body>
     <div class="game-container">
-        <h1><a href="/">EnglishType</a></h1>
+        <h1><a href="/" id="home-link">EnglishType</a></h1>
         <p>Изучай английский и тренируй скорость печати!</p>
         <select id="category">
             <option value="short">Короткие слова</option>
@@ -151,6 +159,7 @@
         <button id="toggle-tts-btn">Озвучка (On)</button>
 
         <div id="game" class="hidden">
+            <div id="caps-warning">Caps Lock включён!</div>
             <div id="word"></div>
             <div id="translation"></div>
             <div id="author"></div>
@@ -183,18 +192,25 @@
         const wordCountEl = document.getElementById("word-count");
         const wpmEl = document.getElementById("wpm");
         const accuracyEl = document.getElementById("accuracy");
-
+        const capsWarningEl = document.getElementById("caps-warning");
+        const homeLink = document.getElementById("home-link");
 
         startBtn.addEventListener('click', startGame);
         toggleTtsBtn.addEventListener('click', toggleTts);
-
+        homeLink.addEventListener('click',  () => {
+            speechSynthesis.cancel(); // Stop any ongoing TTS
+        });
         function toggleTts() {
             ttsEnabled = !ttsEnabled;
-            toggleTtsBtn.textContent = `Озвучка (${ttsEnabled ? 'On': 'Off'})`;
+            toggleTtsBtn.textContent = `Озвучка (${ttsEnabled ? 'On' : 'Off'})`;
+             if (!ttsEnabled) {
+                speechSynthesis.cancel();
+            }
         }
 
-        
+
         async function startGame() {
+            speechSynthesis.cancel();
             startBtn.classList.add('hidden');
             categorySelect.classList.add('hidden');
             toggleTtsBtn.classList.add('hidden');
@@ -231,7 +247,7 @@
                 authorEl.style.display = 'none';
                 return;
             }
-            
+
             // Handle TTS separately so it doesn't interfere with fetch errors
             if (ttsEnabled) {
                 speakTranslation(translationEl.textContent);
@@ -255,16 +271,20 @@
             wordEl.innerHTML = html;
         }
 
-         function handleTyping(event) {
+        function handleTyping(event) {
             if (isProcessing) return;
             if (event.ctrlKey || event.altKey || event.metaKey) return; // Ignore shortcuts
+            
+            const capsLockOn = event.getModifierState('CapsLock');
+            capsWarningEl.style.display = capsLockOn ? 'block' : 'none';
+
             if (event.key.length !== 1 && event.key !== 'Backspace') return; // Only chars and backspace
 
             if (event.key === 'Backspace') {
                 if (typed.length > 0) {
                     const wasCorrect = typed[typed.length - 1] === currentWord[typed.length - 1];
                     typed = typed.slice(0, typed.length - 1);
-                    
+
                     // Monkeytype style: don't count backspace in totalCharsTyped
                     // But if we had a correct char, decrease correctCharsTyped
                     if (wasCorrect && correctCharsTyped > 0) {
@@ -272,17 +292,17 @@
                     }
                     // Removed totalCharsTyped-- to penalize accuracy for mistakes/corrections over the entire session
                 }
-            } else {
+            } else if (typed.length < currentWord.length) {
                 // Add character
                 typed += event.key;
                 totalCharsTyped++;
-                
+
                 // Check if this position is correct
                 if (typed.length <= currentWord.length && typed[typed.length - 1] === currentWord[typed.length - 1]) {
                     correctCharsTyped++;
                 }
             }
-            
+
             renderWord();
             updateAccuracy();
             calculateWPM(); // Update WPM in real time
@@ -296,13 +316,14 @@
                 }, 500);
             }
         }
-        
+
         function speakTranslation(text) {
+            speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ru-RU';
             const voices = speechSynthesis.getVoices();
-            const russianVoice = voices.find(voice => voice.lang === 'ru-RU'); 
-            if (russianVoice){
+            const russianVoice = voices.find(voice => voice.lang === 'ru-RU');
+            if (russianVoice) {
                 utterance.voice = russianVoice;
             } else {
                 console.warn('Russian voice not found, using default.');
@@ -311,7 +332,7 @@
             utterance.pitch = 0.8;
             speechSynthesis.speak(utterance);
         }
-        
+
         window.speechSynthesis.onvoiceschanged = () => {
 
         };
@@ -330,7 +351,7 @@
                 wpmEl.textContent = wpm;
             }
         }
-        
+
         function updateAccuracy() {
             // Monkeytype style accuracy: correct chars / total chars typed (not including backspaces)
             const accuracy = totalCharsTyped > 0 ? (correctCharsTyped / totalCharsTyped) * 100 : 100;
