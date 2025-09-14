@@ -117,6 +117,7 @@
             color: #10b981;
             font-weight: 700;
         }
+
         #caps-warning {
             font-size: 1.1rem;
             color: #ef4444;
@@ -200,13 +201,13 @@
 
         startBtn.addEventListener('click', startGame);
         toggleTtsBtn.addEventListener('click', toggleTts);
-        homeLink.addEventListener('click',  () => {
+        homeLink.addEventListener('click', () => {
             speechSynthesis.cancel(); // Stop any ongoing TTS
         });
         function toggleTts() {
             ttsEnabled = !ttsEnabled;
             toggleTtsBtn.textContent = `Озвучка (${ttsEnabled ? 'On' : 'Off'})`;
-             if (!ttsEnabled) {
+            if (!ttsEnabled) {
                 speechSynthesis.cancel();
             }
         }
@@ -233,7 +234,7 @@
 
 
         async function loadNextWord() {
-            isProcessing = false;
+            isProcessing = true;
             typed = '';
             const category = categorySelect.value;
             try {
@@ -250,6 +251,7 @@
                 translationEl.textContent = 'Error loading word. Try again.';
                 wordEl.textContent = '';
                 authorEl.style.display = 'none';
+                isProcessing = false;
                 return;
             }
 
@@ -257,10 +259,12 @@
                 activeTypingTime += new Date() - lastWordEndTime;
             }
             lastWordEndTime = null;
+            isProcessing = false;
             // Handle TTS separately so it doesn't interfere with fetch errors
             if (ttsEnabled) {
                 speakTranslation(translationEl.textContent);
             }
+
         }
 
         function renderWord() {
@@ -285,7 +289,7 @@
 
             if (event.key === ' ' && categorySelect.value !== 'quotes') return;
             if (event.ctrlKey || event.altKey || event.metaKey) return; // Ignore shortcuts
-            
+
             const capsLockOn = event.getModifierState('CapsLock');
             capsWarningEl.style.display = capsLockOn ? 'block' : 'none';
 
@@ -323,7 +327,6 @@
                 updateStats();
                 isProcessing = true;
                 lastWordEndTime = new Date();
-                currentWord = '';
                 await loadNextWord();
             }
         }
@@ -357,7 +360,7 @@
             if (startTime) {
                 const now = new Date();
                 let totalTime = lastWordEndTime ? activeTypingTime : (now - startTime);
-                const minutes = totalTime  / 1000 / 60;
+                const minutes = totalTime / 1000 / 60;
                 // Monkeytype formula: (correct characters / 5) / time in minutes
                 const wpm = minutes > 0 ? Math.round((correctCharsTyped / 5) / minutes) : 0;
                 wpmEl.textContent = wpm;
