@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.responses import FileResponse
 import uvicorn
 from aiohttp import ClientSession
 import random
 from googletrans import Translator
+
 
 # создаём объект переводчика
 translator = Translator()
@@ -30,18 +32,18 @@ with open("data/long.txt") as f:
 app = FastAPI()
 
 
-origins = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Разрешённые домены
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET"],  # Разрешённые методы
+    allow_headers=["*"],  # Разрешённые заголовки
 )
+
+
+@app.get('/')
+async def serve_index():
+    return FileResponse("index.html")
 
 @app.get('/get_quotes')
 async def get_quotes():
@@ -85,4 +87,4 @@ async def get_medium():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", reload=True)
+    uvicorn.run("main:app", reload=True, host='0.0.0.0', port=10000)
