@@ -181,6 +181,8 @@
         let typed = '';
         let isProcessing = false;
         let ttsEnabled = true;
+        let activeTypingTime = 0; // Общее время активного ввода в миллисекундах
+        let lastWordEndTime = null; // Время завершения последнего слова
 
         const startBtn = document.getElementById("start-btn");
         const categorySelect = document.getElementById("category");
@@ -220,6 +222,8 @@
             totalCharsTyped = 0;
             typed = '';
             isProcessing = false;
+            activeTypingTime = 0;
+            lastWordEndTime = null;
             updateStats();
             await loadNextWord();
             startTime = new Date();
@@ -248,6 +252,10 @@
                 return;
             }
 
+            if (lastWordEndTime) {
+                activeTypingTime += new Date() - lastWordEndTime;
+            }
+            lastWordEndTime = null;
             // Handle TTS separately so it doesn't interfere with fetch errors
             if (ttsEnabled) {
                 speakTranslation(translationEl.textContent);
@@ -271,7 +279,7 @@
             wordEl.innerHTML = html;
         }
 
-        function handleTyping(event) {
+        async function handleTyping(event) {
             if (isProcessing) return;
             if (event.ctrlKey || event.altKey || event.metaKey) return; // Ignore shortcuts
             
@@ -311,9 +319,8 @@
                 wordCount++;
                 updateStats();
                 isProcessing = true;
-                setTimeout(async () => {
-                    await loadNextWord();
-                }, 500);
+                lastWordEndTime = new Date();
+                await loadNextWord();
             }
         }
 
@@ -345,7 +352,8 @@
         function calculateWPM() {
             if (startTime) {
                 const now = new Date();
-                const minutes = (now - startTime) / 1000 / 60;
+                let totalTime = lastWordEndTime ? activeTypingTime : (now - startTime);
+                const minutes = totalTime  / 1000 / 60;
                 // Monkeytype formula: (correct characters / 5) / time in minutes
                 const wpm = minutes > 0 ? Math.round((correctCharsTyped / 5) / minutes) : 0;
                 wpmEl.textContent = wpm;

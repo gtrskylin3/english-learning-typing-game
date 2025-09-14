@@ -50,9 +50,9 @@ async def get_quotes():
         quote = response['quote']
         translate = await translator.translate(quote, src="en", dest="ru")
         return {
-            "quote": quote,
+            "quote": ''.join(str(i).capitalize() for i in quote.split('.'))+'.',
             "author": response["author"],
-            "translated_quote": translate.text
+            "translated_quote": str(translate.text)
             }
 
 @app.get("/get_short")
