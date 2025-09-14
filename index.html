@@ -282,6 +282,8 @@
 
         async function handleTyping(event) {
             if (isProcessing) return;
+
+            if (event.key === ' ' && categorySelect.value !== 'quotes') return;
             if (event.ctrlKey || event.altKey || event.metaKey) return; // Ignore shortcuts
             
             const capsLockOn = event.getModifierState('CapsLock');
