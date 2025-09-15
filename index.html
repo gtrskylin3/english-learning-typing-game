@@ -275,6 +275,7 @@
                     if (typed[i] === char) {
                         html += `<span style="color:#10b981">${char}</span>`; // Green for correct
                     } else {
+                        if (char === ' '){html += `<span style="color:#ef4444">${typed[i]}</span>`; continue;}
                         html += `<span style="color:#ef4444">${char}</span>`; // Red for mistake
                     }
                 } else {
